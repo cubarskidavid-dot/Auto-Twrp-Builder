@@ -100,6 +100,32 @@ jobs:
       working-directory: ${{ steps.pwd.outputs.workspace-folder }}
       id: gdt
 
+    - name: Patch generated device tree (T1060 / KitKat / MT6589)
+      run: |
+        BC="${{ steps.gdt.outputs.DEVICE_PATH }}/BoardConfig.mk"
+        echo "Patching $BC"
+        sed -i 's/^TARGET_USES_64_BIT_BINDER :=.*/# TARGET_USES_64_BIT_BINDER disabled (32-bit device)/' "$BC"
+        sed -i 's/^TARGET_CPU_VARIANT :=.*/TARGET_CPU_VARIANT := cortex-a7/' "$BC"
+        sed -i 's/^TARGET_CPU_VARIANT_RUNTIME :=.*/TARGET_CPU_VARIANT_RUNTIME := cortex-a7/' "$BC"
+        sed -i 's/^BOARD_BOOTIMAGE_PARTITION_SIZE :=.*/BOARD_BOOTIMAGE_PARTITION_SIZE := 16777216/' "$BC"
+        sed -i 's/^BOARD_RECOVERYIMAGE_PARTITION_SIZE :=.*/BOARD_RECOVERYIMAGE_PARTITION_SIZE := 16777216/' "$BC"
+        sed -i 's/^PLATFORM_VERSION :=.*/PLATFORM_VERSION := 8.1.0/' "$BC"
+        sed -i 's/^TW_THEME :=.*/TW_THEME := landscape_mdpi/' "$BC"
+        sed -i 's/^TARGET_KERNEL_SOURCE :=.*/# TARGET_KERNEL_SOURCE disabled (prebuilt kernel)/' "$BC"
+        sed -i 's/^TARGET_KERNEL_CONFIG :=.*/# TARGET_KERNEL_CONFIG disabled (prebuilt kernel)/' "$BC"
+        sed -i 's/^TARGET_USERIMAGES_USE_F2FS :=.*/# TARGET_USERIMAGES_USE_F2FS disabled (KitKat kernel)/' "$BC"
+        sed -i 's/^BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE :=.*/# BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE disabled (no vendor partition)/' "$BC"
+        sed -i 's/^TARGET_COPY_OUT_VENDOR :=.*/# TARGET_COPY_OUT_VENDOR disabled (no vendor partition)/' "$BC"
+        sed -i 's/^OVERRIDE_TARGET_FLATTEN_APEX :=.*/# OVERRIDE_TARGET_FLATTEN_APEX disabled (Android 8.1)/' "$BC"
+        grep -q '^BOARD_HAS_MTK_HEADER' "$BC" || echo 'BOARD_HAS_MTK_HEADER := true' >> "$BC"
+        grep -q '^BOARD_MTK_HEADER' "$BC" || echo 'BOARD_MTK_HEADER := true' >> "$BC"
+        grep -q '^TW_HAS_MTK_HEADER' "$BC" || echo 'TW_HAS_MTK_HEADER := true' >> "$BC"
+        grep -q '^TARGET_RECOVERY_FSTAB' "$BC" || echo 'TARGET_RECOVERY_FSTAB := $(DEVICE_PATH)/recovery.fstab' >> "$BC"
+        grep -q '^TARGET_OTA_ASSERT_DEVICE' "$BC" || echo 'TARGET_OTA_ASSERT_DEVICE := t1060,t1060b,t1060c' >> "$BC"
+        echo "--- patched BoardConfig ---"
+        cat "$BC"
+      working-directory: ${{ steps.pwd.outputs.workspace-folder }}
+
     - name: Sync Device Dependencies
       run: |
         bash ${GITHUB_WORKSPACE}/scripts/convert.sh ${{ steps.gdt.outputs.DEVICE_PATH }}/${{ steps.buildtree.outputs.value }}.dependencies
